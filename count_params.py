@@ -31,8 +31,8 @@ def count_parameters_by_module(model: nn.Module, trainable_only=True) -> dict:
     return result
 
 
-def load_model_from_checkpoint(ckpt_path: str) -> nn.Module:
-    """Load model from checkpoint."""
+def load_state_dict_from_checkpoint(ckpt_path: str) -> dict:
+    """Load state dict from checkpoint."""
     ckpt_path = Path(ckpt_path)
     if not ckpt_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
@@ -47,10 +47,7 @@ def load_model_from_checkpoint(ckpt_path: str) -> nn.Module:
     else:
         state_dict = checkpoint
 
-    # Create a simple wrapper model to load state dict
-    model = nn.Module()
-    model.load_state_dict(state_dict)
-    return model
+    return state_dict
 
 
 def format_number(num: int) -> str:
@@ -61,6 +58,25 @@ def format_number(num: int) -> str:
         return f"{num / 1_000_000:.2f}M ({num:,})"
     else:
         return f"{num:,}"
+
+
+def count_params_from_state_dict(state_dict: dict) -> tuple[int, dict]:
+    """Count parameters from state dict, returns (total_params, params_by_module)."""
+    params_by_module = {}
+    total_params = 0
+
+    for name, param in state_dict.items():
+        if isinstance(param, torch.Tensor):
+            num_params = param.numel()
+            total_params += num_params
+
+            # Extract module name (everything before the last dot)
+            module_name = ".".join(name.split(".")[:-1]) if "." in name else name
+            if module_name not in params_by_module:
+                params_by_module[module_name] = 0
+            params_by_module[module_name] += num_params
+
+    return total_params, params_by_module
 
 
 def main():
@@ -95,34 +111,25 @@ Examples:
         print(f"Loading checkpoint: {args.ckpt_path}")
         print("=" * 80)
 
-        model = load_model_from_checkpoint(args.ckpt_path)
+        state_dict = load_state_dict_from_checkpoint(args.ckpt_path)
+        total_params, params_by_module = count_params_from_state_dict(state_dict)
 
-        trainable_params = count_parameters(model, trainable_only=True)
-        total_params = count_parameters(model, trainable_only=False)
-
-        print(f"\n{'Trainable Parameters:':<30} {format_number(trainable_params)}")
-        print(f"{'Total Parameters:':<30} {format_number(total_params)}")
-
-        frozen_params = total_params - trainable_params
-        if frozen_params > 0:
-            print(f"{'Frozen Parameters:':<30} {format_number(frozen_params)}")
+        print(f"\n{'Total Parameters:':<30} {format_number(total_params)}")
 
         if args.detailed:
             print("\n" + "=" * 80)
             print("Parameter Breakdown by Module")
             print("=" * 80)
 
-            params_by_module = count_parameters_by_module(model, trainable_only=False)
-
             # Sort by parameter count (descending)
             sorted_modules = sorted(params_by_module.items(), key=lambda x: x[1], reverse=True)
 
-            for name, params in sorted_modules[:20]:  # Show top 20
+            for name, params in sorted_modules[:25]:  # Show top 25
                 pct = (params / total_params) * 100
-                print(f"{name:<50} {format_number(params):>20} ({pct:>5.2f}%)")
+                print(f"{name:<55} {format_number(params):>20} ({pct:>5.2f}%)")
 
-            if len(sorted_modules) > 20:
-                print(f"\n... and {len(sorted_modules) - 20} more modules")
+            if len(sorted_modules) > 25:
+                print(f"\n... and {len(sorted_modules) - 25} more modules")
 
         print("\n" + "=" * 80)
 
@@ -130,7 +137,9 @@ Examples:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"Error loading model: {e}", file=sys.stderr)
+        print(f"Error loading checkpoint: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
