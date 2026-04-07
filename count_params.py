@@ -35,19 +35,7 @@ def count_parameters_by_module(model: nn.Module, trainable_only=True):
 
 
 if __name__ == "__main__":
-    import gym
-    from gym.spaces import Dict as SpaceDict
-
-    # Mock observation space (minimal setup to instantiate)
-    obs_space = SpaceDict({
-        "rgb_dinov2": gym.spaces.Box(low=0, high=255, shape=(1, 384), dtype="float32"),
-        "natural_language_spec": gym.spaces.Box(low=0, high=1000, shape=(15,), dtype="int32"),
-        "time_step": gym.spaces.Box(low=0, high=1, shape=(1,), dtype="int32"),
-        "traj_index": gym.spaces.Box(low=0, high=1, shape=(1,), dtype="int32"),
-    })
-
     action_space = gym.spaces.Discrete(20)  # Approximate action space
-
     # Single model
     print("=" * 80)
     print("DinoLLAMATxNavActorCritic (single)")
