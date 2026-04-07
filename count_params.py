@@ -35,7 +35,6 @@ def count_parameters_by_module(model: nn.Module, trainable_only=True):
 
 
 if __name__ == "__main__":
-    action_space = gym.spaces.Discrete(20)  # Approximate action space
     # Single model
     print("=" * 80)
     print("DinoLLAMATxNavActorCritic (single)")
